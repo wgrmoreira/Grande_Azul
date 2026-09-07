@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jogo de Mergulho</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        #gameCanvas {
+            width: 100%;
+            height: 75%;
+            display: block;
+        }
+        #ui-container {
+            width: 100%;
+            height: 25%;
+            background-color: #1a1a1a;
+            position: relative;
+            border-top: 2px solid #333;
+        }
+        #joystickCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #ui-text {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 10;
+            text-shadow: 1px 1px 2px #000;
+            text-align: right;
+            line-height: 1.4;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .bar-bg {
+            width: 150px;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s linear;
+        }
+        #health-fill { background: #e74c3c; }
+        #oxy-fill { background: #3498db; }
+        .bar-label {
+            position: absolute;
+            top: 0;
+            left: 8px;
+            font-size: 11px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            line-height: 14px;
+            text-shadow: 1px 1px 2px #000;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div class="bar-bg">
+            <div id="health-fill" class="bar-fill"></div>
+            <span class="bar-label">VIDA</span>
+        </div>
+        <div class="bar-bg">
+            <div id="oxy-fill" class="bar-fill"></div>
+            <span class="bar-label">O2</span>
+        </div>
+    </div>
+    
+    <div id="ui-text">
+        Pontos: <span id="score-val">0</span><br>
+        Descidas: <span id="dive-val">0</span><br>
+        Entregues: <span id="deposited-val">0</span><br>
+        <span style="font-size:12px; color:#aaa">Mochila: $<span id="carrying-val">0</span> (<span id="items-val">0</span> itens)</span>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui-container">
+        <canvas id="joystickCanvas"></canvas>
+    </div>
+</div>
+
+<script>
+    // Gerenciador de Áudio Web (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSound(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        if (type === 'coin') {
+            // Arpejo agradável e agudo
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'damage') {
+            // Ruído grave de ataque
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        } else if (type === 'beep') {
+            // Bip de alerta (sonar/emergência)
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        } else if (type === 'bubble') {
+            // Som suave ao pegar bolsão de ar
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+    }
+
+    const gameCanvas = document.getElementById('gameCanvas');
+    const ctx = gameCanvas.getContext('2d');
+    const joystickCanvas = document.getElementById('joystickCanvas');
+    const jCtx = joystickCanvas.getContext('2d');
+    const healthFill = document.getElementById('health-fill');
+    const oxyFill = document.getElementById('oxy-fill');
+
+    // Imagens
+    const imgMergulhador = new Image(); imgMergulhador.src = 'assets/img/mergulhador.png';
+    const imgBarco = new Image(); imgBarco.src = 'assets/img/barco.png';
+    const imgBranco = new Image(); imgBranco.src = 'assets/img/branco.png';
+    const imgMartelo = new Image(); imgMartelo.src = 'assets/img/martelo.png';
+    const imgGolfinho = new Image(); imgGolfinho.src = 'assets/img/golfinho1.png';
+    const imgCeu = new Image(); imgCeu.src = 'assets/img/ceu1.jpg'; 
+    
+    const imgFundo1 = new Image(); imgFundo1.src = 'assets/img/fundo1.jpg';
+    const imgFundo2 = new Image(); imgFundo2.src = 'assets/img/fundo2.jpg';
+    const imgFundo3 = new Image(); imgFundo3.src = 'assets/img/fundo3.jpg';
+    
+    const imgBloco1 = new Image(); imgBloco1.src = 'assets/img/bloco1.png';
+    const imgBloco2 = new Image(); imgBloco2.src = 'assets/img/bloco2.png';
+    const imgBloco3 = new Image(); imgBloco3.src = 'assets/img/bloco3.png';
+    const blocosImgs = [imgBloco1, imgBloco2, imgBloco3];
+
+    const imgPeixe1 = new Image(); imgPeixe1.src = 'assets/img/peixe1.png';
+    const imgPeixe2 = new Image(); imgPeixe2.src = 'assets/img/peixe2.png';
+    const imgPeixe3 = new Image(); imgPeixe3.src = 'assets/img/peixe3.png';
+
+    let W, H; 
+    let worldW, worldH;
+    let screenCol = 1; 
+    let screenRow = 0; 
+
+    let player;
+    let boat;
+    let dolphin;
+    let sharks = [];
+    let fishes = [];
+    let stones = [];
+    let treasures = [];
+    let bubbles = []; 
+    let visualBubbles = []; 
+    let fundosAtuais = []; 
+    
+    let treasuresCarrying = 0;
+    let treasuresDeposited = 0;
+    let score = 0;
+    let scoreCarrying = 0;
+    let time = 0;
+    let lastDamageTime = 0;
+
+    let diveCount = 0;
+    let sharkSpeedMultiplier = 1.0;
+
+    const coinTypes = [
+        { name: "Ouro", color: "#ffd700", glow: "#ff8c00", value: 100 },
+        { name: "Prata", color: "#e3e4e5", glow: "#ffffff", value: 50 },
+        { name: "Bronze", color: "#cd7f32", glow: "#8b4513", value: 20 }
+    ];
+
+    let joystick = {
+        active: false,
+        cx: 0, cy: 0, 
+        x: 0, y: 0,   
+        dx: 0, dy: 0, 
+        maxR: 50
+    };
+
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        
+        let pRadius = Math.min(W, H) * 0.04;
+        player = {
+            x: W * 1.35,
+            y: H * 0.3,
+            r: pRadius, 
+            hitR: pRadius * 0.45, 
+            baseSpeed: Math.min(W, H) * 0.002, 
+            vx: 0, vy: 0,
+            health: 100,
+            oxy: 100,
+            oxyDepletionRate: 100 / (135 * 60), 
+            flipX: false, 
+            flipY: false  
+        };
+
+        let boatWidth = W * 0.28;
+        boat = {
+            x: W * 1.5,
+            w: boatWidth, 
+            h: boatWidth * 0.45 
+        };
+
+        generateLevel();
+        setupJoystick();
+        updateHUD();
+        updateUI();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function resize() {
+        gameCanvas.width = gameCanvas.clientWidth;
+        gameCanvas.height = gameCanvas.clientHeight;
+        joystickCanvas.width = joystickCanvas.clientWidth;
+        joystickCanvas.height = joystickCanvas.clientHeight;
+        
+        W = gameCanvas.width;
+        H = gameCanvas.height;
+        worldW = W * 3;
+        worldH = H * 2;
+        
+        joystick.cx = joystickCanvas.width / 2;
+        joystick.cy = joystickCanvas.height / 2;
+        joystick.maxR = Math.min(joystickCanvas.width, joystickCanvas.height) * 0.3;
+    }
+
+    function updateUI() {
+        document.getElementById('score-val').innerText = score;
+        document.getElementById('dive-val').innerText = diveCount;
+        document.getElementById('deposited-val').innerText = treasuresDeposited;
+        document.getElementById('carrying-val').innerText = scoreCarrying;
+        document.getElementById('items-val').innerText = treasuresCarrying;
+    }
+
+    function updateHUD() {
+        healthFill.style.width = Math.max(0, player.health) + "%";
+        oxyFill.style.width = Math.max(0, player.oxy) + "%";
+        oxyFill.style.background = player.oxy < 30 ? "#e74c3c" : "#3498db";
+    }
+
+    function spawnVisualBubble(bx, by, maxR) {
+        visualBubbles.push({
+            x: bx,
+            y: by,
+            r: Math.random() * maxR + W * 0.001,
+            vy: H * 0.00015 + Math.random() * (H * 0.0002),
+            wobbleSpeed: 0.01 + Math.random() * 0.015,
+            wobbleAmp: W * 0.0005 + Math.random() * (W * 0.0015),
+            wobbleOffset: Math.random() * Math.PI * 2,
+            alpha: 0.4 + Math.random() * 0.4
+        });
+    }
+
+    function generateLevel() {
+        stones = [];
+        treasures = [];
+        bubbles = [];
+        sharks = [];
+        fishes = [];
+        visualBubbles = [];
+        
+        fundosAtuais = [imgFundo1, imgFundo2, imgFundo3];
+        for (let i = fundosAtuais.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [fundosAtuais[i], fundosAtuais[j]] = [fundosAtuais[j], fundosAtuais[i]];
+        }
+        
+        let tr = W * 0.008; 
+        let bubbleR = W * 0.015;
+        let numTreasures = Math.floor(Math.random() * 5) + 12; 
+        
+        for(let i=0; i<numTreasures; i++) {
+            let type = coinTypes[Math.floor(Math.random() * coinTypes.length)];
+            let tx, ty;
+            let region = Math.random();
+            
+            if (region < 0.38) { 
+                tx = W * (0.05 + Math.random() * 0.6); ty = H * (1.1 + Math.random() * 0.8); 
+            } else if (region < 0.76) { 
+                tx = W * (2.3 + Math.random() * 0.6); ty = H * (1.1 + Math.random() * 0.8); 
+            } else { 
+                tx = W * (1.1 + Math.random() * 0.8); ty = H * (1.1 + Math.random() * 0.8); 
+            }
+            treasures.push({x: tx, y: ty, r: tr, collected: false, type: type});
+        }
+
+        for(let i=0; i<2; i++) {
+            let bx = W * (0.2 + Math.random() * 2.6);
+            let by = H * (1.2 + Math.random() * 0.7);
+            bubbles.push({x: bx, y: by, r: bubbleR, baseY: by});
+        }
+
+        let baseSize = W * 0.07;
+
+        for (let x = -baseSize; x < worldW + baseSize; x += baseSize * 0.8) {
+            let img = blocosImgs[Math.floor(Math.random() * blocosImgs.length)];
+            let sW = baseSize * (1.2 + Math.random() * 0.8);
+            let sH = baseSize * (1.2 + Math.random() * 0.8);
+            stones.push({x: x, y: worldH - sH * 0.8, w: sW, h: sH, img: img, area: sW * sH, emitsBubbles: false});
+        }
+
+        const isNearItem = (rx, ry, rw, rh) => {
+            let cx = rx + rw/2;
+            let cy = ry + rh/2;
+            
+            for (let t of treasures) {
+                let dist = Math.sqrt(Math.pow(cx - t.x, 2) + Math.pow(cy - t.y, 2));
+                if (dist < baseSize * 2.5) return true; 
+                if (cy < t.y && Math.abs(cx - t.x) < baseSize * 2.5) return true; 
+            }
+            for (let b of bubbles) {
+                let dist = Math.sqrt(Math.pow(cx - b.x, 2) + Math.pow(cy - b.y, 2));
+                if (dist < baseSize * 2.5) return true; 
+                if (cy < b.y && Math.abs(cx - b.x) < baseSize * 2.5) return true; 
+            }
+            return false;
+        };
+
+        const addStone = (x, y, w, h) => {
+            if (!isNearItem(x, y, w, h)) {
+                let img = blocosImgs[Math.floor(Math.random() * blocosImgs.length)];
+                let emits = Math.random() < 0.15;
+                stones.push({x: x, y: y, w: w, h: h, img: img, area: w * h, emitsBubbles: emits}); 
+            }
+        };
+
+        for (let x = -baseSize; x < worldW + baseSize; x += baseSize * 0.4) { 
+            let numStack = Math.floor(Math.random() * 5) + 3; 
+            if (x < W * 0.7 || x > worldW - W * 0.7) {
+                numStack += Math.floor(Math.random() * 6) + 4; 
+            }
+
+            let currentY = worldH - baseSize * 0.5; 
+            
+            for (let i = 0; i < numStack; i++) {
+                let scale = 0.3 + Math.random() * 2.5; 
+                let w = baseSize * scale;
+                let h = w * (0.6 + Math.random() * 0.8); 
+                
+                currentY -= h * (0.35 + Math.random() * 0.4); 
+                let offsetX = x + (Math.random() - 0.5) * baseSize * 1.5;
+                
+                if (Math.random() < 0.25) {
+                    currentY -= h * 0.5; 
+                    continue; 
+                }
+                
+                addStone(offsetX, currentY, w, h);
+            }
+        }
+        
+        stones.sort((a, b) => b.area - a.area);
+
+        for (let t of treasures) {
+            let hit = false;
+            while (!hit && t.y < worldH - t.r) {
+                t.y += 2;
+                for (let s of stones) {
+                    if (t.x > s.x && t.x < s.x + s.w && t.y + t.r > s.y && t.y - t.r < s.y + s.h) {
+                        hit = true;
+                        t.y = s.y - t.r; 
+                        break;
+                    }
+                }
+            }
+        }
+
+        for (let b of bubbles) {
+            let hit = false;
+            while (!hit && b.y < worldH - b.r) {
+                b.y += 2;
+                for (let s of stones) {
+                    if (b.x > s.x && b.x < s.x + s.w && b.y + b.r > s.y && b.y - b.r < s.y + s.h) {
+                        hit = true;
+                        b.y = s.y - b.r - 5; 
+                        b.baseY = b.y; 
+                        break;
+                    }
+                }
+            }
+        }
+
+        dolphin = {
+            img: imgGolfinho,
+            w: W * 0.15, 
+            h: W * 0.15 * 0.45,
+            x: W * 1.5,
+            y: H * 0.8,
+            vx: 0, vy: 0,
+            baseSpeed: W * 0.0018,
+            angle: 0,
+            targetAngle: 0,
+            turnTimer: 0,
+            state: 'wander',
+            stateTimer: 0
+        };
+
+        let extraSharks = Math.floor(diveCount / 5);
+        let totalSharks = 2 + extraSharks;
+
+        for(let i=0; i<totalSharks; i++) {
+            let isBranco = Math.random() > 0.5;
+            let sType = isBranco ? 'branco' : 'martelo';
+            let sImg = isBranco ? imgBranco : imgMartelo;
+            
+            let sizeScale = (i >= 2) ? 0.66 : 1.0;
+            let sw = (isBranco ? W * 0.3 : W * 0.25) * sizeScale;
+            let sh = sw * 0.45; 
+            let sBaseSpeed = (isBranco ? W * 0.0009 : W * 0.0013) * sharkSpeedMultiplier;
+
+            sharks.push({
+                type: sType,
+                img: sImg,
+                w: sw,
+                h: sh,
+                hitW: sw * 0.5,
+                hitH: sh * 0.5,
+                x: W * (0.2 + Math.random() * 2.5),
+                y: H * 0.5 + Math.random() * (worldH - H * 0.6), // Nascem em águas profundas também
+                baseSpeed: sBaseSpeed,
+                vx: (Math.random() > 0.5 ? 1 : -1) * sBaseSpeed,
+                vy: (Math.random() > 0.5 ? 1 : -1) * (sBaseSpeed * 0.5), // Todos agora patrulham na vertical
+                timer: Math.random() * 100
+            });
+        }
+
+        // Peixes (Tamanho Aumentado - 1/5 do tubarão médio ~ W * 0.05)
+        for(let i=0; i<35; i++) {
+            let pImg;
+            let rand = Math.random();
+            if (rand < 0.7) pImg = imgPeixe3; 
+            else if (rand < 0.85) pImg = imgPeixe1;
+            else pImg = imgPeixe2;
+
+            fishes.push({
+                w: W * 0.05 + Math.random() * W * 0.015, 
+                h: W * 0.035, 
+                img: pImg,
+                x: Math.random() * worldW,
+                y: H * 0.35 + Math.random() * (worldH - H * 0.4),
+                angle: Math.random() * Math.PI * 2,
+                targetAngle: Math.random() * Math.PI * 2,
+                baseSpeed: W * 0.0003 + Math.random() * (W * 0.0002), 
+                currentSpeed: 0,
+                turnTimer: Math.random() * 150,
+                burstTimer: Math.random() * 400,
+                vx: 0, vy: 0
+            });
+        }
+
+        for(let c=0; c<3; c++) {
+            let schoolX = W * 0.2 + Math.random() * (worldW - W * 0.4);
+            let schoolY = H * 0.5 + Math.random() * (H * 0.8);
+            for(let j=0; j<8; j++) {
+                fishes.push({
+                    w: W * 0.05 + Math.random() * W * 0.015,
+                    h: W * 0.035,
+                    img: imgPeixe3,
+                    x: schoolX + (Math.random() - 0.5) * W * 0.15,
+                    y: schoolY + (Math.random() - 0.5) * H * 0.15,
+                    angle: Math.random() * Math.PI * 2,
+                    targetAngle: Math.random() * Math.PI * 2,
+                    baseSpeed: W * 0.0003 + Math.random() * (W * 0.0002), 
+                    currentSpeed: 0,
+                    turnTimer: Math.random() * 150,
+                    burstTimer: Math.random() * 400,
+                    vx: 0, vy: 0
+                });
+            }
+        }
+    }
+
+    function setupJoystick() {
+        const startJoy = (e) => { 
+            joystick.active = true; 
+            updateJoy(e); 
+            // Inicia contexto de áudio na primeira interação do usuário
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        };
+        const moveJoy = (e) => { if(joystick.active) updateJoy(e); };
+        const endJoy = (e) => {
+            joystick.active = false;
+            joystick.dx = 0; joystick.dy = 0;
+            joystick.x = joystick.cx; joystick.y = joystick.cy;
+        };
+
+        const getEventPos = (e) => {
+            let rect = joystickCanvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        };
+
+        const updateJoy = (e) => {
+            let pos = getEventPos(e);
+            let dx = pos.x - joystick.cx;
+            let dy = pos.y - joystick.cy;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist > joystick.maxR) {
+                dx = (dx / dist) * joystick.maxR;
+                dy = (dy / dist) * joystick.maxR;
+            }
+            
+            joystick.x = joystick.cx + dx;
+            joystick.y = joystick.cy + dy;
+            
+            joystick.dx = dx / joystick.maxR;
+            joystick.dy = dy / joystick.maxR;
+        };
+
+        joystickCanvas.addEventListener('mousedown', startJoy);
+        joystickCanvas.addEventListener('mousemove', moveJoy);
+        window.addEventListener('mouseup', endJoy);
+        joystickCanvas.addEventListener('touchstart', startJoy);
+        joystickCanvas.addEventListener('touchmove', moveJoy);
+        joystickCanvas.addEventListener('touchend', endJoy);
+    }
+
+    function getWaveY1(x) { return H * 0.3 + Math.sin(time * 0.015 + x * 0.01) * (H * 0.012); }
+    function getWaveY2(x) { return H * 0.3 + Math.cos(time * 0.018 + x * 0.015) * (H * 0.015); }
+    function getAverageWaveY(x) { return (getWaveY1(x) + getWaveY2(x)) / 2; }
+
+    function checkCollision(px, py, pr, rect) {
+        return (px + pr > rect.x && px - pr < rect.x + rect.w &&
+                py + pr > rect.y && py - pr < rect.y + rect.h);
+    }
+
+    function rectIntersect(r1, r2) {
+        return !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y);
+    }
+
+    function die() {
+        alert("Você não sobreviveu às profundezas! Reiniciando...");
+        player.health = 100;
+        player.oxy = 100;
+        player.x = W * 1.35;
+        player.y = H * 0.3; 
+        treasuresCarrying = 0;
+        scoreCarrying = 0;
+        score = 0;
+        diveCount = 0; 
+        treasuresDeposited = 0;
+        sharkSpeedMultiplier = 1.0; 
+        generateLevel();
+        updateUI();
+        updateHUD();
+    }
+
+    function update() {
+        time += 1;
+        let surfaceY = getAverageWaveY(player.x);
+
+        let depthFactor = Math.max(0, (player.y - surfaceY) / (worldH - surfaceY));
+        let dynamicSpeed = player.baseSpeed * (1 - (depthFactor * 0.7)); 
+
+        if (player.y > H) {
+            dynamicSpeed *= 0.9;
+        }
+
+        player.vx = joystick.dx * dynamicSpeed;
+        player.vy = joystick.dy * dynamicSpeed;
+
+        if (player.vx > 0.1) player.flipX = true;       
+        else if (player.vx < -0.1) player.flipX = false; 
+        
+        if (player.vy > player.baseSpeed * 0.2) player.flipY = true; 
+        else player.flipY = false;
+
+        // Bip de Oxigênio Baixo (<30%)
+        if (player.oxy < 30 && player.oxy > 0 && time % 60 === 0) {
+            playSound('beep');
+        }
+
+        if (player.y > surfaceY + 10) {
+            player.oxy -= player.oxyDepletionRate;
+            
+            if (player.oxy <= 0) {
+                player.oxy = 0;
+                player.health -= 0.1; 
+            }
+
+            if (Math.random() < 0.02) {
+                let headOffsetX = player.flipX ? -player.r*0.6 : player.r*0.6;
+                spawnVisualBubble(player.x + headOffsetX, player.y - player.r*0.4, W*0.002);
+            }
+        } else {
+            if (player.oxy < 0) player.oxy = 0; // Para de tomar dano se chegar na superfície
+        }
+
+        if (player.health <= 0) {
+            die();
+            return;
+        }
+
+        if (!joystick.active && player.y <= surfaceY + 2) {
+            player.y = surfaceY; 
+        } else {
+            player.x += player.vx;
+            if(player.x - player.r < 0) player.x = player.r;
+            if(player.x + player.r > worldW) player.x = worldW - player.r;
+            for(let s of stones) {
+                if(checkCollision(player.x, player.y, player.hitR, s)) {
+                    if(player.vx > 0) player.x = s.x - player.hitR;
+                    else if(player.vx < 0) player.x = s.x + s.w + player.hitR;
+                }
+            }
+
+            player.y += player.vy;
+            if(player.y < surfaceY) player.y = surfaceY; 
+            if(player.y + player.r > worldH) player.y = worldH - player.r;
+            for(let s of stones) {
+                if(checkCollision(player.x, player.y, player.hitR, s)) {
+                    if(player.vy > 0) player.y = s.y - player.hitR;
+                    else if(player.vy < 0) player.y = s.y + s.h + player.hitR;
+                }
+            }
+        }
+
+        if (dolphin) {
+            let dx = player.x - dolphin.x;
+            let dy = player.y - dolphin.y;
+            let distToPlayer = Math.sqrt(dx*dx + dy*dy);
+
+            if (dolphin.state === 'wander') {
+                dolphin.turnTimer--;
+                if (dolphin.turnTimer <= 0) {
+                    dolphin.targetAngle = Math.random() * Math.PI * 2;
+                    dolphin.turnTimer = 100 + Math.random() * 200;
+                }
+                if (distToPlayer < W * 0.3) {
+                    dolphin.state = 'follow';
+                    dolphin.stateTimer = 180; 
+                }
+            } else if (dolphin.state === 'follow') {
+                dolphin.stateTimer--;
+                dolphin.targetAngle = Math.atan2(dy, dx);
+                
+                if (distToPlayer < W * 0.1) {
+                    dolphin.targetAngle += Math.PI / 2; 
+                }
+                
+                if (dolphin.stateTimer <= 0) {
+                    dolphin.state = 'leave';
+                    dolphin.stateTimer = 300; 
+                    dolphin.targetAngle = dolphin.angle + Math.PI; 
+                }
+            } else if (dolphin.state === 'leave') {
+                dolphin.stateTimer--;
+                if (dolphin.stateTimer <= 0) {
+                    dolphin.state = 'wander';
+                }
+            }
+
+            let diff = dolphin.targetAngle - dolphin.angle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            dolphin.angle += diff * 0.02;
+
+            dolphin.vx = Math.cos(dolphin.angle) * dolphin.baseSpeed;
+            dolphin.vy = Math.sin(dolphin.angle) * dolphin.baseSpeed;
+
+            dolphin.x += dolphin.vx;
+            dolphin.y += dolphin.vy;
+
+            let dsY = getAverageWaveY(dolphin.x);
+            if (dolphin.x < 0) { dolphin.x = 0; dolphin.targetAngle = 0; dolphin.angle = 0; }
+            if (dolphin.x + dolphin.w > worldW) { dolphin.x = worldW - dolphin.w; dolphin.targetAngle = Math.PI; dolphin.angle = Math.PI; }
+            if (dolphin.y < dsY + 20) { dolphin.y = dsY + 20; dolphin.targetAngle = Math.PI/2; dolphin.angle = Math.PI/2; }
+            if (dolphin.y + dolphin.h > worldH) { dolphin.y = worldH - dolphin.h; dolphin.targetAngle = -Math.PI/2; dolphin.angle = -Math.PI/2; }
+        }
+
+        for (let b of bubbles) {
+            if (Math.random() < 0.002) {
+                spawnVisualBubble(b.x + (Math.random()-0.5)*b.r, b.y - b.r, W*0.003);
+            }
+        }
+        for (let s of stones) {
+            if (s.emitsBubbles && Math.random() < 0.0005) {
+                spawnVisualBubble(s.x + Math.random()*s.w, s.y, W*0.0015);
+            }
+        }
+
+        for (let i = visualBubbles.length - 1; i >= 0; i--) {
+            let vb = visualBubbles[i];
+            vb.y -= vb.vy;
+            vb.x += Math.sin(time * vb.wobbleSpeed + vb.wobbleOffset) * vb.wobbleAmp;
+            
+            if (vb.y < getAverageWaveY(vb.x)) {
+                visualBubbles.splice(i, 1);
+            }
+        }
+
+        for (let i = fishes.length - 1; i >= 0; i--) {
+            let f = fishes[i];
+            f.turnTimer--;
+            f.burstTimer--;
+            
+            if (f.turnTimer <= 0) {
+                f.targetAngle += (Math.random() - 0.5) * Math.PI; 
+                f.turnTimer = 100 + Math.random() * 150;
+            }
+
+            if (f.burstTimer <= 0) {
+                f.currentSpeed = f.baseSpeed * (2 + Math.random() * 2);
+                f.burstTimer = 250 + Math.random() * 350;
+            }
+
+            let diff = f.targetAngle - f.angle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            f.angle += diff * 0.02;
+
+            f.currentSpeed += (f.baseSpeed - f.currentSpeed) * 0.02;
+            f.vx = Math.cos(f.angle) * f.currentSpeed;
+            f.vy = Math.sin(f.angle) * f.currentSpeed;
+            f.x += f.vx;
+            f.y += f.vy;
+
+            let fsy = getAverageWaveY(f.x);
+            if (f.x < 0) { f.x = 0; f.targetAngle = 0; f.angle = 0; }
+            if (f.x + f.w > worldW) { f.x = worldW - f.w; f.targetAngle = Math.PI; f.angle = Math.PI; }
+            if (f.y < fsy + 5) { f.y = fsy + 5; f.targetAngle = Math.PI/2; f.angle = Math.PI/2; }
+            if (f.y + f.h > worldH) { f.y = worldH - f.h; f.targetAngle = -Math.PI/2; f.angle = -Math.PI/2; }
+
+            let eaten = false;
+            for (let s of sharks) {
+                let bocaX = s.vx > 0 ? s.x + s.w : s.x;
+                if (Math.abs(f.x - bocaX) < s.w*0.3 && f.y > s.y && f.y < s.y + s.h) {
+                    eaten = true;
+                    break;
+                }
+            }
+            if (eaten) fishes.splice(i, 1);
+        }
+
+        // Atualização dos Tubarões explorando todo o mapa (raso e profundo)
+        for (let shark of sharks) {
+            shark.timer--;
+            if (shark.timer <= 0) {
+                let dirX = shark.vx > 0 ? 1 : -1;
+                shark.vx = dirX * shark.baseSpeed * (0.5 + Math.random());
+                
+                // TODOS os tubarões exploram o eixo Y
+                let dirY = Math.random() > 0.5 ? 1 : -1;
+                shark.vy = dirY * shark.baseSpeed * (0.3 + Math.random() * 0.5);
+
+                shark.timer = 60 + Math.random() * 150;
+            }
+
+            shark.x += shark.vx;
+            shark.y += shark.vy || 0; 
+            
+            let sRect = {
+                x: shark.x + (shark.w - shark.hitW) / 2, 
+                y: shark.y + (shark.h - shark.hitH) / 2, 
+                w: shark.hitW, 
+                h: shark.hitH
+            };
+            
+            let hitWallX = false;
+            let hitWallY = false;
+            
+            if (shark.x < 0 || shark.x + shark.w > worldW) hitWallX = true;
+            
+            let syLimit = getAverageWaveY(shark.x) + 30;
+            if (shark.y < syLimit || shark.y + shark.h > worldH) hitWallY = true;
+            
+            for (let s of stones) {
+                if (rectIntersect(sRect, s)) {
+                    hitWallX = true; 
+                    hitWallY = true;
+                    break;
+                }
+            }
+            
+            if (hitWallX) {
+                shark.vx *= -1;
+                shark.x += shark.vx * 3; 
+            }
+            
+            if (hitWallY) {
+                shark.vy *= -1;
+                shark.y += shark.vy * 3; 
+            }
+
+            let sx = shark.x + shark.w/2;
+            let sy = shark.y + shark.h/2;
+            let distToShark = Math.sqrt((player.x - sx)**2 + (player.y - sy)**2);
+            
+            if (distToShark < player.r + shark.hitW * 0.7) {
+                if (time - lastDamageTime > 60) {
+                    player.health -= 25; 
+                    lastDamageTime = time;
+                    playSound('damage');
+                    ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+                    ctx.fillRect(0, 0, W, H);
+                }
+            }
+        }
+
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+            let b = bubbles[i];
+            let dist = Math.sqrt((player.x - b.x)**2 + (player.y - b.y)**2);
+            if (dist < player.r + b.r) {
+                player.oxy = Math.min(100, player.oxy + 20); 
+                playSound('bubble');
+                bubbles.splice(i, 1);
+            }
+        }
+
+        for (let t of treasures) {
+            if (!t.collected) {
+                let dx = player.x - t.x;
+                let dy = player.y - t.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < player.hitR + t.r) {
+                    t.collected = true;
+                    playSound('coin');
+                    treasuresCarrying++;
+                    scoreCarrying += t.type.value; 
+                    updateUI();
+                }
+            }
+        }
+
+        let boatY = getAverageWaveY(boat.x);
+        let boatRect = { x: boat.x - boat.w/2, y: boatY - boat.h, w: boat.w, h: boat.h };
+        if (checkCollision(player.x, player.y, player.r, boatRect)) {
+            
+            player.oxy = 100; 
+            
+            if (treasuresCarrying > 0) {
+                treasuresDeposited += treasuresCarrying;
+                score += scoreCarrying; 
+                
+                treasuresCarrying = 0;
+                scoreCarrying = 0;
+                
+                diveCount++;
+                sharkSpeedMultiplier *= 1.02; 
+                
+                updateUI();
+                generateLevel(); 
+                player.x = W * 1.35;
+                player.y = getAverageWaveY(player.x);
+            }
+        }
+
+        screenCol = Math.floor(player.x / W);
+        screenRow = Math.floor(player.y / H);
+        
+        if(time % 10 === 0) updateHUD();
+    }
+
+    function drawGame() {
+        if (screenRow === 0) {
+            let grad = ctx.createLinearGradient(0, 0, 0, H);
+            grad.addColorStop(0, "#3498db");
+            grad.addColorStop(1, "#154360");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+        } else {
+            let imgFundoAtual = fundosAtuais[screenCol];
+            if (imgFundoAtual && imgFundoAtual.complete && imgFundoAtual.width > 0) {
+                ctx.drawImage(imgFundoAtual, 0, 0, W, H);
+            } else {
+                let grad = ctx.createLinearGradient(0, 0, 0, H);
+                grad.addColorStop(0, "#154360");
+                grad.addColorStop(1, "#0d1d29");
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, W, H);
+            }
+        }
+
+        ctx.save();
+        ctx.translate(-screenCol * W, -screenRow * H);
+
+        if (screenRow === 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(screenCol * W, 0);
+            ctx.lineTo((screenCol + 1) * W, 0);
+            ctx.lineTo((screenCol + 1) * W, getWaveY1((screenCol + 1) * W));
+            for(let x = (screenCol + 1) * W; x >= screenCol * W; x -= 10) {
+                ctx.lineTo(x, getWaveY1(x));
+            }
+            ctx.closePath();
+            ctx.clip(); 
+
+            if (imgCeu.complete && imgCeu.width > 0) {
+                ctx.drawImage(imgCeu, screenCol * W, 0, W, H);
+            } else {
+                ctx.fillStyle = "#87CEEB"; 
+                ctx.fill();
+            }
+            ctx.restore();
+
+            ctx.fillStyle = "rgba(41, 128, 185, 0.4)"; 
+            ctx.beginPath();
+            ctx.moveTo(screenCol * W, H*0.5);
+            ctx.lineTo(screenCol * W, getWaveY2(screenCol * W));
+            for(let x = screenCol * W; x <= (screenCol + 1) * W; x += 10) {
+                ctx.lineTo(x, getWaveY2(x));
+            }
+            ctx.lineTo((screenCol + 1) * W, H*0.5);
+            ctx.fill();
+            
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let x = screenCol * W; x <= (screenCol + 1) * W; x += 10) ctx.lineTo(x, getWaveY1(x));
+            ctx.stroke();
+
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+            ctx.beginPath();
+            for(let x = screenCol * W; x <= (screenCol + 1) * W; x += 10) ctx.lineTo(x, getWaveY2(x));
+            ctx.stroke();
+
+            let bY = getAverageWaveY(boat.x);
+            let bY2 = getAverageWaveY(boat.x + boat.w);
+            let angle = Math.atan2(bY2 - bY, boat.w);
+            
+            ctx.save();
+            ctx.translate(boat.x, bY);
+            ctx.rotate(angle);
+            
+            if (imgBarco.complete && imgBarco.width > 0) {
+                let aspect = imgBarco.width / imgBarco.height;
+                let drawW = boat.w;
+                let drawH = drawW / aspect;
+                let afundarH = drawH * 0.3; 
+                
+                ctx.drawImage(imgBarco, -drawW/2, -drawH + afundarH, drawW, drawH);
+                
+                if (treasuresCarrying > 0) {
+                    ctx.strokeStyle = "#2ecc71";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-drawW/2, -drawH + afundarH, drawW, drawH);
+                }
+            } else {
+                ctx.fillStyle = "#8d6e63";
+                ctx.fillRect(-boat.w/2, -boat.h, boat.w, boat.h);
+            }
+            ctx.restore();
+        }
+
+        for (let b of bubbles) {
+            let wobbleY = b.baseY + Math.sin(time * 0.05 + b.x * 0.1) * 3;
+            ctx.fillStyle = "rgba(173, 216, 230, 0.5)";
+            ctx.beginPath();
+            ctx.arc(b.x, wobbleY, b.r, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.beginPath();
+            ctx.arc(b.x - b.r*0.3, wobbleY - b.r*0.3, b.r*0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        for (let f of fishes) {
+            ctx.save();
+            ctx.translate(f.x + f.w/2, f.y + f.h/2);
+            ctx.scale(f.vx > 0 ? -1 : 1, 1);
+            
+            if (f.img && f.img.complete && f.img.width > 0) {
+                let aspect = f.img.width / f.img.height;
+                let drawW = f.w;
+                let drawH = drawW / aspect;
+                f.h = drawH; 
+                ctx.drawImage(f.img, -drawW/2, -drawH/2, drawW, drawH);
+            } else {
+                ctx.fillStyle = f.color;
+                ctx.fillRect(-f.w/2, -f.h/2, f.w, f.h);
+            }
+            ctx.restore();
+        }
+
+        for(let s of stones) {
+            if(s.img && s.img.complete && s.img.width > 0) {
+                let imgRatio = s.img.width / s.img.height;
+                let boxRatio = s.w / s.h;
+                let sW = s.img.width, sH = s.img.height;
+                let sx = 0, sy = 0;
+
+                if (imgRatio > boxRatio) {
+                    sW = s.img.height * boxRatio;
+                    sx = (s.img.width - sW) / 2;
+                } else {
+                    sH = s.img.width / boxRatio;
+                    sy = (s.img.height - sH) / 2;
+                }
+                ctx.drawImage(s.img, sx, sy, sW, sH, s.x, s.y, s.w, s.h);
+            } else {
+                ctx.fillStyle = "#2c3e50";
+                ctx.fillRect(s.x, s.y, s.w, s.h);
+            }
+        }
+
+        for (let t of treasures) {
+            if (!t.collected) {
+                let pulse = 10 + Math.abs(Math.sin(time * 0.05)) * 15;
+                ctx.shadowBlur = pulse;
+                ctx.shadowColor = t.type.glow;
+                
+                ctx.fillStyle = t.type.color;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = "rgba(255,255,255,0.7)";
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.r * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.abs(Math.sin(time * 0.05)) * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.r * 1.8, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0; 
+            }
+        }
+
+        if (dolphin) {
+            ctx.save();
+            ctx.translate(dolphin.x + dolphin.w/2, dolphin.y + dolphin.h/2);
+            ctx.scale(dolphin.vx > 0 ? -1 : 1, 1);
+            if (dolphin.img && dolphin.img.complete && dolphin.img.width > 0) {
+                let aspect = dolphin.img.width / dolphin.img.height;
+                let drawW = dolphin.w;
+                let drawH = drawW / aspect;
+                dolphin.h = drawH; 
+                ctx.drawImage(dolphin.img, -drawW/2, -drawH/2, drawW, drawH);
+            } else {
+                ctx.fillStyle = "pink";
+                ctx.fillRect(-dolphin.w/2, -dolphin.h/2, dolphin.w, dolphin.h);
+            }
+            ctx.restore();
+        }
+
+        for (let vb of visualBubbles) {
+            let currentAlpha = vb.alpha;
+            let surfaceY = getAverageWaveY(vb.x);
+            
+            if (vb.y < surfaceY + H * 0.1) {
+                let fade = (vb.y - surfaceY) / (H * 0.1);
+                currentAlpha *= Math.max(0, fade);
+            }
+            
+            if (currentAlpha > 0) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`;
+                ctx.beginPath();
+                ctx.arc(vb.x, vb.y, vb.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        for (let shark of sharks) {
+            ctx.save();
+            ctx.translate(shark.x + shark.w/2, shark.y + shark.h/2);
+            ctx.scale(shark.vx > 0 ? -1 : 1, 1);
+            
+            if (shark.img && shark.img.complete && shark.img.width > 0) {
+                let aspect = shark.img.width / shark.img.height;
+                let drawW = shark.w;
+                let drawH = drawW / aspect; 
+                ctx.drawImage(shark.img, -drawW/2, -drawH/2, drawW, drawH);
+            } else {
+                ctx.fillStyle = shark.type === 'branco' ? "#ccc" : "#34495e";
+                ctx.fillRect(-shark.w/2, -shark.h/2, shark.w, shark.h);
+            }
+            ctx.restore();
+        }
+
+        if (time - lastDamageTime > 60 || Math.floor(time / 5) % 2 === 0) {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.scale(player.flipX ? -1 : 1, player.flipY ? -1 : 1);
+            
+            if(imgMergulhador.complete && imgMergulhador.width > 0) {
+                let aspect = imgMergulhador.width / imgMergulhador.height;
+                let drawW = player.r * 2.5; 
+                let drawH = drawW / aspect; 
+                ctx.drawImage(imgMergulhador, -drawW/2, -drawH/2, drawW, drawH);
+            } else {
+                ctx.fillStyle = "#e67e22"; 
+                ctx.beginPath();
+                ctx.arc(0, 0, player.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    function drawJoystick() {
+        jCtx.clearRect(0, 0, joystickCanvas.width, joystickCanvas.height);
+        jCtx.beginPath();
+        jCtx.arc(joystick.cx, joystick.cy, joystick.maxR, 0, Math.PI * 2);
+        jCtx.fillStyle = "rgba(255, 255, 255, 0.05)";
+        jCtx.fill();
+        jCtx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        jCtx.lineWidth = 2;
+        jCtx.stroke();
+
+        let pinoX = joystick.active ? joystick.x : joystick.cx;
+        let pinoY = joystick.active ? joystick.y : joystick.cy;
+        
+        jCtx.beginPath();
+        jCtx.arc(pinoX, pinoY, joystick.maxR * 0.4, 0, Math.PI * 2);
+        jCtx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        jCtx.fill();
+    }
+
+    function gameLoop() {
+        update();
+        drawGame();
+        drawJoystick();
+        requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
