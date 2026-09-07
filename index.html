@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jogo de Mergulho</title>
+    <title>Grande Azul - Jogo de Mergulho</title>
     <style>
         * {
             margin: 0;
@@ -16,6 +16,7 @@
             height: 100%;
             overflow: hidden;
             background-color: #000;
+            font-family: Arial, sans-serif;
         }
         #game-container {
             position: relative;
@@ -46,14 +47,14 @@
             top: 10px;
             right: 20px;
             color: #fff;
-            font-family: Arial, sans-serif;
-            font-size: 16px;
             font-weight: bold;
+            font-size: 16px;
             pointer-events: none;
             z-index: 10;
             text-shadow: 1px 1px 2px #000;
             text-align: right;
             line-height: 1.4;
+            display: none; /* Oculto na tela inicial */
         }
         #hud {
             position: absolute;
@@ -61,7 +62,7 @@
             left: 20px;
             z-index: 10;
             pointer-events: none;
-            display: flex;
+            display: none; /* Oculto na tela inicial */
             flex-direction: column;
             gap: 8px;
         }
@@ -87,16 +88,91 @@
             left: 8px;
             font-size: 11px;
             color: #fff;
-            font-family: Arial, sans-serif;
             font-weight: bold;
             line-height: 14px;
             text-shadow: 1px 1px 2px #000;
         }
+        
+        /* Telas de Overlay (Inicio e Fim) */
+        .screen-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(4, 25, 45, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+            backdrop-filter: blur(3px);
+        }
+        .hidden { display: none !important; }
+        
+        .logo {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #3498db;
+            text-shadow: 0px 4px 10px rgba(0,0,0,0.8), 0 0 20px rgba(52, 152, 219, 0.5);
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .btn {
+            padding: 18px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: linear-gradient(180deg, #2ecc71, #27ae60);
+            border: 2px solid #2ecc71;
+            border-radius: 15px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.5);
+            transition: all 0.1s ease;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .btn:active {
+            transform: scale(0.92);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        .stats-box {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            color: #ecf0f1;
+            line-height: 1.6;
+            margin-top: 20px;
+        }
+        .stats-box span { font-weight: bold; color: #f1c40f; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
+    <!-- Tela Inicial -->
+    <div id="start-screen" class="screen-overlay">
+        <div class="logo">Grande Azul</div>
+        <button id="btn-start" class="btn">Mergulhar</button>
+        <div class="stats-box">
+            🏆 Recorde de Pontos: <span id="high-score-val">0</span><br>
+            ⚓ Máx. Descidas: <span id="high-dive-val">0</span>
+        </div>
+    </div>
+
+    <!-- Tela de Game Over -->
+    <div id="game-over-screen" class="screen-overlay hidden">
+        <div style="font-size: 2.8rem; color: #e74c3c; margin-bottom: 20px; font-weight: bold; text-shadow: 2px 2px 5px #000;">VOCÊ NÃO SOBREVIVEU!</div>
+        <div class="stats-box" style="margin-bottom: 40px; font-size: 1.4rem;">
+            Pontos da Partida: <span id="final-score-val">0</span><br>
+            Descidas Concluídas: <span id="final-dive-val">0</span>
+        </div>
+        <button id="btn-restart" class="btn">Tentar Novamente</button>
+    </div>
+
     <div id="hud">
         <div class="bar-bg">
             <div id="health-fill" class="bar-fill"></div>
@@ -125,6 +201,11 @@
     // Gerenciador de Áudio Web (Web Audio API)
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
+    // Áudio de fundo do oceano
+    const bgMusic = new Audio('assets/music/oceano.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.5;
+    
     function playSound(type) {
         if(audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
@@ -133,7 +214,6 @@
         gain.connect(audioCtx.destination);
         
         if (type === 'coin') {
-            // Arpejo agradável e agudo
             osc.type = 'sine';
             osc.frequency.setValueAtTime(600, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
@@ -142,7 +222,6 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.15);
         } else if (type === 'damage') {
-            // Ruído grave de ataque
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(150, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.4);
@@ -151,7 +230,6 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.4);
         } else if (type === 'beep') {
-            // Bip de alerta (sonar/emergência)
             osc.type = 'square';
             osc.frequency.setValueAtTime(800, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
@@ -159,7 +237,6 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.1);
         } else if (type === 'bubble') {
-            // Som suave ao pegar bolsão de ar
             osc.type = 'sine';
             osc.frequency.setValueAtTime(300, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.2);
@@ -167,6 +244,22 @@
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 'click') { // Som agradável para os botões
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(700, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        } else if (type === 'defeat') { // Som grave e melancólico de morte
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 1.2);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.2);
         }
     }
 
@@ -197,6 +290,11 @@
     const imgPeixe1 = new Image(); imgPeixe1.src = 'assets/img/peixe1.png';
     const imgPeixe2 = new Image(); imgPeixe2.src = 'assets/img/peixe2.png';
     const imgPeixe3 = new Image(); imgPeixe3.src = 'assets/img/peixe3.png';
+
+    // Estados e Recordes
+    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let highScore = localStorage.getItem('grandeAzul_score') || 0;
+    let highDives = localStorage.getItem('grandeAzul_dives') || 0;
 
     let W, H; 
     let worldW, worldH;
@@ -239,10 +337,14 @@
     };
 
     function init() {
+        // Atualizar textos dos recordes na tela inicial
+        document.getElementById('high-score-val').innerText = highScore;
+        document.getElementById('high-dive-val').innerText = highDives;
+
         resize();
         window.addEventListener('resize', resize);
         
-        let pRadius = Math.min(W, H) * 0.04;
+        let pRadius = Math.min(W, H) * 0.052;
         player = {
             x: W * 1.35,
             y: H * 0.3,
@@ -257,18 +359,57 @@
             flipY: false  
         };
 
-        let boatWidth = W * 0.28;
+        let boatWidth = W * 0.364;
         boat = {
             x: W * 1.5,
             w: boatWidth, 
             h: boatWidth * 0.45 
         };
 
+        // Eventos dos botões de UI
+        document.getElementById('btn-start').addEventListener('click', () => {
+            playSound('click');
+            startGame();
+        });
+        
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            playSound('click');
+            startGame();
+        });
+
         generateLevel();
         setupJoystick();
         updateHUD();
         updateUI();
+        
+        // Iniciar loop base animando apenas as ondas e fundos
         requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        
+        gameState = 'playing';
+        player.health = 100;
+        player.oxy = 100;
+        player.x = W * 1.35;
+        player.y = H * 0.3; 
+        treasuresCarrying = 0;
+        scoreCarrying = 0;
+        score = 0;
+        diveCount = 0; 
+        treasuresDeposited = 0;
+        sharkSpeedMultiplier = 1.0; 
+        
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('hud').style.display = 'flex';
+        document.getElementById('ui-text').style.display = 'block';
+        joystickCanvas.style.display = 'block';
+
+        generateLevel();
+        updateUI();
+        updateHUD();
     }
 
     function resize() {
@@ -445,8 +586,8 @@
 
         dolphin = {
             img: imgGolfinho,
-            w: W * 0.15, 
-            h: W * 0.15 * 0.45,
+            w: W * 0.195, 
+            h: W * 0.195 * 0.45,
             x: W * 1.5,
             y: H * 0.8,
             vx: 0, vy: 0,
@@ -479,25 +620,26 @@
                 hitW: sw * 0.5,
                 hitH: sh * 0.5,
                 x: W * (0.2 + Math.random() * 2.5),
-                y: H * 0.5 + Math.random() * (worldH - H * 0.6), // Nascem em águas profundas também
+                y: H * 0.5 + Math.random() * (worldH - H * 0.6), 
                 baseSpeed: sBaseSpeed,
                 vx: (Math.random() > 0.5 ? 1 : -1) * sBaseSpeed,
-                vy: (Math.random() > 0.5 ? 1 : -1) * (sBaseSpeed * 0.5), // Todos agora patrulham na vertical
+                vy: (Math.random() > 0.5 ? 1 : -1) * (sBaseSpeed * 0.5), 
                 timer: Math.random() * 100
             });
         }
 
-        // Peixes (Tamanho Aumentado - 1/5 do tubarão médio ~ W * 0.05)
+        // Peixes avulsos (Escala corrigida: Sardinha = x2, Peixe1 e 2 = x1)
         for(let i=0; i<35; i++) {
             let pImg;
+            let fishScale = 1; 
             let rand = Math.random();
-            if (rand < 0.7) pImg = imgPeixe3; 
-            else if (rand < 0.85) pImg = imgPeixe1;
-            else pImg = imgPeixe2;
+            if (rand < 0.7) { pImg = imgPeixe3; fishScale = 2; } 
+            else if (rand < 0.85) { pImg = imgPeixe1; fishScale = 1; }
+            else { pImg = imgPeixe2; fishScale = 1; }
 
             fishes.push({
-                w: W * 0.05 + Math.random() * W * 0.015, 
-                h: W * 0.035, 
+                w: (W * 0.05 + Math.random() * W * 0.015) * fishScale, 
+                h: (W * 0.035) * fishScale, 
                 img: pImg,
                 x: Math.random() * worldW,
                 y: H * 0.35 + Math.random() * (worldH - H * 0.4),
@@ -511,13 +653,14 @@
             });
         }
 
+        // Cardumes de sardinha sempre dobrados
         for(let c=0; c<3; c++) {
             let schoolX = W * 0.2 + Math.random() * (worldW - W * 0.4);
             let schoolY = H * 0.5 + Math.random() * (H * 0.8);
             for(let j=0; j<8; j++) {
                 fishes.push({
-                    w: W * 0.05 + Math.random() * W * 0.015,
-                    h: W * 0.035,
+                    w: (W * 0.05 + Math.random() * W * 0.015) * 2,
+                    h: (W * 0.035) * 2,
                     img: imgPeixe3,
                     x: schoolX + (Math.random() - 0.5) * W * 0.15,
                     y: schoolY + (Math.random() - 0.5) * H * 0.15,
@@ -537,7 +680,6 @@
         const startJoy = (e) => { 
             joystick.active = true; 
             updateJoy(e); 
-            // Inicia contexto de áudio na primeira interação do usuário
             if(audioCtx.state === 'suspended') audioCtx.resume();
         };
         const moveJoy = (e) => { if(joystick.active) updateJoy(e); };
@@ -594,24 +736,41 @@
     }
 
     function die() {
-        alert("Você não sobreviveu às profundezas! Reiniciando...");
-        player.health = 100;
-        player.oxy = 100;
-        player.x = W * 1.35;
-        player.y = H * 0.3; 
-        treasuresCarrying = 0;
-        scoreCarrying = 0;
-        score = 0;
-        diveCount = 0; 
-        treasuresDeposited = 0;
-        sharkSpeedMultiplier = 1.0; 
-        generateLevel();
-        updateUI();
-        updateHUD();
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        playSound('defeat');
+        gameState = 'gameover';
+        
+        // Atualiza Local Storage com Recordes
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('grandeAzul_score', highScore);
+        }
+        if (diveCount > highDives) {
+            highDives = diveCount;
+            localStorage.setItem('grandeAzul_dives', highDives);
+        }
+        
+        document.getElementById('final-score-val').innerText = score;
+        document.getElementById('final-dive-val').innerText = diveCount;
+        
+        // Atualiza UI principal para mostrar recordes na próxima vez
+        document.getElementById('high-score-val').innerText = highScore;
+        document.getElementById('high-dive-val').innerText = highDives;
+        
+        document.getElementById('game-over-screen').classList.remove('hidden');
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('ui-text').style.display = 'none';
+        joystickCanvas.style.display = 'none';
     }
 
     function update() {
-        time += 1;
+        time += 1; // Incrementa o tempo sempre (para renderizar ondas)
+        
+        if (gameState !== 'playing') {
+            return; // Bloqueia todo o resto da física caso não esteja jogando
+        }
+
         let surfaceY = getAverageWaveY(player.x);
 
         let depthFactor = Math.max(0, (player.y - surfaceY) / (worldH - surfaceY));
@@ -630,13 +789,19 @@
         if (player.vy > player.baseSpeed * 0.2) player.flipY = true; 
         else player.flipY = false;
 
-        // Bip de Oxigênio Baixo (<30%)
         if (player.oxy < 30 && player.oxy > 0 && time % 60 === 0) {
             playSound('beep');
         }
 
         if (player.y > surfaceY + 10) {
             player.oxy -= player.oxyDepletionRate;
+            
+            if (bgMusic.paused) {
+                let playPromise = bgMusic.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => { /* Ignora o erro silenciosamente até interação */ });
+                }
+            }
             
             if (player.oxy <= 0) {
                 player.oxy = 0;
@@ -648,7 +813,11 @@
                 spawnVisualBubble(player.x + headOffsetX, player.y - player.r*0.4, W*0.002);
             }
         } else {
-            if (player.oxy < 0) player.oxy = 0; // Para de tomar dano se chegar na superfície
+            if (player.oxy < 0) player.oxy = 0; 
+            
+            if (!bgMusic.paused) {
+                bgMusic.pause();
+            }
         }
 
         if (player.health <= 0) {
@@ -797,18 +966,16 @@
             if (eaten) fishes.splice(i, 1);
         }
 
-        // Atualização dos Tubarões explorando todo o mapa (raso e profundo)
         for (let shark of sharks) {
             shark.timer--;
             if (shark.timer <= 0) {
-                let dirX = shark.vx > 0 ? 1 : -1;
+                let dirX = Math.random() > 0.5 ? 1 : -1;
                 shark.vx = dirX * shark.baseSpeed * (0.5 + Math.random());
                 
-                // TODOS os tubarões exploram o eixo Y
                 let dirY = Math.random() > 0.5 ? 1 : -1;
                 shark.vy = dirY * shark.baseSpeed * (0.3 + Math.random() * 0.5);
 
-                shark.timer = 60 + Math.random() * 150;
+                shark.timer = 100 + Math.random() * 200;
             }
 
             shark.x += shark.vx;
@@ -824,28 +991,43 @@
             let hitWallX = false;
             let hitWallY = false;
             
-            if (shark.x < 0 || shark.x + shark.w > worldW) hitWallX = true;
+            if (shark.x < 0) { shark.x = 0; hitWallX = true; }
+            if (shark.x + shark.w > worldW) { shark.x = worldW - shark.w; hitWallX = true; }
             
             let syLimit = getAverageWaveY(shark.x) + 30;
-            if (shark.y < syLimit || shark.y + shark.h > worldH) hitWallY = true;
+            if (shark.y < syLimit) { shark.y = syLimit; hitWallY = true; }
+            if (shark.y + shark.h > worldH) { shark.y = worldH - shark.h; hitWallY = true; }
             
             for (let s of stones) {
                 if (rectIntersect(sRect, s)) {
-                    hitWallX = true; 
-                    hitWallY = true;
-                    break;
+                    let overlapLeft = (sRect.x + sRect.w) - s.x;
+                    let overlapRight = (s.x + s.w) - sRect.x;
+                    let overlapTop = (sRect.y + sRect.h) - s.y;
+                    let overlapBottom = (s.y + s.h) - sRect.y;
+
+                    let minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+                    if (minOverlap === overlapLeft) {
+                        shark.x -= overlapLeft;
+                        hitWallX = true;
+                    } else if (minOverlap === overlapRight) {
+                        shark.x += overlapRight;
+                        hitWallX = true;
+                    } else if (minOverlap === overlapTop) {
+                        shark.y -= overlapTop;
+                        hitWallY = true;
+                    } else if (minOverlap === overlapBottom) {
+                        shark.y += overlapBottom;
+                        hitWallY = true;
+                    }
+                    
+                    sRect.x = shark.x + (shark.w - shark.hitW) / 2;
+                    sRect.y = shark.y + (shark.h - shark.hitH) / 2;
                 }
             }
             
-            if (hitWallX) {
-                shark.vx *= -1;
-                shark.x += shark.vx * 3; 
-            }
-            
-            if (hitWallY) {
-                shark.vy *= -1;
-                shark.y += shark.vy * 3; 
-            }
+            if (hitWallX) shark.vx *= -1;
+            if (hitWallY) shark.vy *= -1;
 
             let sx = shark.x + shark.w/2;
             let sy = shark.y + shark.h/2;
@@ -917,14 +1099,18 @@
     }
 
     function drawGame() {
-        if (screenRow === 0) {
+        // Se estamos no start ou gameover, fixa a câmera visualmente na superfície
+        let dScreenCol = gameState !== 'playing' ? 1 : screenCol;
+        let dScreenRow = gameState !== 'playing' ? 0 : screenRow;
+
+        if (dScreenRow === 0) {
             let grad = ctx.createLinearGradient(0, 0, 0, H);
             grad.addColorStop(0, "#3498db");
             grad.addColorStop(1, "#154360");
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, W, H);
         } else {
-            let imgFundoAtual = fundosAtuais[screenCol];
+            let imgFundoAtual = fundosAtuais[dScreenCol];
             if (imgFundoAtual && imgFundoAtual.complete && imgFundoAtual.width > 0) {
                 ctx.drawImage(imgFundoAtual, 0, 0, W, H);
             } else {
@@ -937,22 +1123,22 @@
         }
 
         ctx.save();
-        ctx.translate(-screenCol * W, -screenRow * H);
+        ctx.translate(-dScreenCol * W, -dScreenRow * H);
 
-        if (screenRow === 0) {
+        if (dScreenRow === 0) {
             ctx.save();
             ctx.beginPath();
-            ctx.moveTo(screenCol * W, 0);
-            ctx.lineTo((screenCol + 1) * W, 0);
-            ctx.lineTo((screenCol + 1) * W, getWaveY1((screenCol + 1) * W));
-            for(let x = (screenCol + 1) * W; x >= screenCol * W; x -= 10) {
+            ctx.moveTo(dScreenCol * W, 0);
+            ctx.lineTo((dScreenCol + 1) * W, 0);
+            ctx.lineTo((dScreenCol + 1) * W, getWaveY1((dScreenCol + 1) * W));
+            for(let x = (dScreenCol + 1) * W; x >= dScreenCol * W; x -= 10) {
                 ctx.lineTo(x, getWaveY1(x));
             }
             ctx.closePath();
             ctx.clip(); 
 
             if (imgCeu.complete && imgCeu.width > 0) {
-                ctx.drawImage(imgCeu, screenCol * W, 0, W, H);
+                ctx.drawImage(imgCeu, dScreenCol * W, 0, W, H);
             } else {
                 ctx.fillStyle = "#87CEEB"; 
                 ctx.fill();
@@ -961,23 +1147,23 @@
 
             ctx.fillStyle = "rgba(41, 128, 185, 0.4)"; 
             ctx.beginPath();
-            ctx.moveTo(screenCol * W, H*0.5);
-            ctx.lineTo(screenCol * W, getWaveY2(screenCol * W));
-            for(let x = screenCol * W; x <= (screenCol + 1) * W; x += 10) {
+            ctx.moveTo(dScreenCol * W, H*0.5);
+            ctx.lineTo(dScreenCol * W, getWaveY2(dScreenCol * W));
+            for(let x = dScreenCol * W; x <= (dScreenCol + 1) * W; x += 10) {
                 ctx.lineTo(x, getWaveY2(x));
             }
-            ctx.lineTo((screenCol + 1) * W, H*0.5);
+            ctx.lineTo((dScreenCol + 1) * W, H*0.5);
             ctx.fill();
             
             ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            for(let x = screenCol * W; x <= (screenCol + 1) * W; x += 10) ctx.lineTo(x, getWaveY1(x));
+            for(let x = dScreenCol * W; x <= (dScreenCol + 1) * W; x += 10) ctx.lineTo(x, getWaveY1(x));
             ctx.stroke();
 
             ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
             ctx.beginPath();
-            for(let x = screenCol * W; x <= (screenCol + 1) * W; x += 10) ctx.lineTo(x, getWaveY2(x));
+            for(let x = dScreenCol * W; x <= (dScreenCol + 1) * W; x += 10) ctx.lineTo(x, getWaveY2(x));
             ctx.stroke();
 
             let bY = getAverageWaveY(boat.x);
@@ -996,7 +1182,7 @@
                 
                 ctx.drawImage(imgBarco, -drawW/2, -drawH + afundarH, drawW, drawH);
                 
-                if (treasuresCarrying > 0) {
+                if (treasuresCarrying > 0 && gameState === 'playing') {
                     ctx.strokeStyle = "#2ecc71";
                     ctx.lineWidth = 2;
                     ctx.strokeRect(-drawW/2, -drawH + afundarH, drawW, drawH);
@@ -1008,156 +1194,162 @@
             ctx.restore();
         }
 
-        for (let b of bubbles) {
-            let wobbleY = b.baseY + Math.sin(time * 0.05 + b.x * 0.1) * 3;
-            ctx.fillStyle = "rgba(173, 216, 230, 0.5)";
-            ctx.beginPath();
-            ctx.arc(b.x, wobbleY, b.r, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.beginPath();
-            ctx.arc(b.x - b.r*0.3, wobbleY - b.r*0.3, b.r*0.2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        for (let f of fishes) {
-            ctx.save();
-            ctx.translate(f.x + f.w/2, f.y + f.h/2);
-            ctx.scale(f.vx > 0 ? -1 : 1, 1);
-            
-            if (f.img && f.img.complete && f.img.width > 0) {
-                let aspect = f.img.width / f.img.height;
-                let drawW = f.w;
-                let drawH = drawW / aspect;
-                f.h = drawH; 
-                ctx.drawImage(f.img, -drawW/2, -drawH/2, drawW, drawH);
-            } else {
-                ctx.fillStyle = f.color;
-                ctx.fillRect(-f.w/2, -f.h/2, f.w, f.h);
+        // Desenhar peixes, tubarões, tesouros, etc APENAS quando estiver jogando (opcional para performance/imersão visual)
+        if (gameState === 'playing' || gameState === 'gameover') {
+            for (let b of bubbles) {
+                let wobbleY = b.baseY + Math.sin(time * 0.05 + b.x * 0.1) * 3;
+                ctx.fillStyle = "rgba(173, 216, 230, 0.5)";
+                ctx.beginPath();
+                ctx.arc(b.x, wobbleY, b.r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.beginPath();
+                ctx.arc(b.x - b.r*0.3, wobbleY - b.r*0.3, b.r*0.2, 0, Math.PI * 2);
+                ctx.fill();
             }
-            ctx.restore();
-        }
 
-        for(let s of stones) {
-            if(s.img && s.img.complete && s.img.width > 0) {
-                let imgRatio = s.img.width / s.img.height;
-                let boxRatio = s.w / s.h;
-                let sW = s.img.width, sH = s.img.height;
-                let sx = 0, sy = 0;
-
-                if (imgRatio > boxRatio) {
-                    sW = s.img.height * boxRatio;
-                    sx = (s.img.width - sW) / 2;
+            for (let f of fishes) {
+                ctx.save();
+                ctx.translate(f.x + f.w/2, f.y + f.h/2);
+                ctx.scale(f.vx > 0 ? -1 : 1, 1);
+                
+                if (f.img && f.img.complete && f.img.width > 0) {
+                    let aspect = f.img.width / f.img.height;
+                    let drawW = f.w;
+                    let drawH = drawW / aspect;
+                    f.h = drawH; 
+                    ctx.drawImage(f.img, -drawW/2, -drawH/2, drawW, drawH);
                 } else {
-                    sH = s.img.width / boxRatio;
-                    sy = (s.img.height - sH) / 2;
+                    ctx.fillStyle = f.color;
+                    ctx.fillRect(-f.w/2, -f.h/2, f.w, f.h);
                 }
-                ctx.drawImage(s.img, sx, sy, sW, sH, s.x, s.y, s.w, s.h);
-            } else {
-                ctx.fillStyle = "#2c3e50";
-                ctx.fillRect(s.x, s.y, s.w, s.h);
+                ctx.restore();
             }
-        }
 
-        for (let t of treasures) {
-            if (!t.collected) {
-                let pulse = 10 + Math.abs(Math.sin(time * 0.05)) * 15;
-                ctx.shadowBlur = pulse;
-                ctx.shadowColor = t.type.glow;
+            for(let s of stones) {
+                if(s.img && s.img.complete && s.img.width > 0) {
+                    let imgRatio = s.img.width / s.img.height;
+                    let boxRatio = s.w / s.h;
+                    let sW = s.img.width, sH = s.img.height;
+                    let sx = 0, sy = 0;
+
+                    if (imgRatio > boxRatio) {
+                        sW = s.img.height * boxRatio;
+                        sx = (s.img.width - sW) / 2;
+                    } else {
+                        sH = s.img.width / boxRatio;
+                        sy = (s.img.height - sH) / 2;
+                    }
+                    ctx.drawImage(s.img, sx, sy, sW, sH, s.x, s.y, s.w, s.h);
+                } else {
+                    ctx.fillStyle = "#2c3e50";
+                    ctx.fillRect(s.x, s.y, s.w, s.h);
+                }
+            }
+
+            for (let t of treasures) {
+                if (!t.collected) {
+                    let pulse = 10 + Math.abs(Math.sin(time * 0.05)) * 15;
+                    ctx.shadowBlur = pulse;
+                    ctx.shadowColor = t.type.glow;
+                    
+                    ctx.fillStyle = t.type.color;
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = "rgba(255,255,255,0.7)";
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, t.r * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.abs(Math.sin(time * 0.05)) * 0.3})`;
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, t.r * 1.8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.shadowBlur = 0; 
+                }
+            }
+
+            if (dolphin) {
+                ctx.save();
+                ctx.translate(dolphin.x + dolphin.w/2, dolphin.y + dolphin.h/2);
+                ctx.scale(dolphin.vx > 0 ? -1 : 1, 1);
+                if (dolphin.img && dolphin.img.complete && dolphin.img.width > 0) {
+                    let aspect = dolphin.img.width / dolphin.img.height;
+                    let drawW = dolphin.w;
+                    let drawH = drawW / aspect;
+                    dolphin.h = drawH; 
+                    ctx.drawImage(dolphin.img, -drawW/2, -drawH/2, drawW, drawH);
+                } else {
+                    ctx.fillStyle = "pink";
+                    ctx.fillRect(-dolphin.w/2, -dolphin.h/2, dolphin.w, dolphin.h);
+                }
+                ctx.restore();
+            }
+
+            for (let vb of visualBubbles) {
+                let currentAlpha = vb.alpha;
+                let surfaceY = getAverageWaveY(vb.x);
                 
-                ctx.fillStyle = t.type.color;
-                ctx.beginPath();
-                ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
-                ctx.fill();
+                if (vb.y < surfaceY + H * 0.1) {
+                    let fade = (vb.y - surfaceY) / (H * 0.1);
+                    currentAlpha *= Math.max(0, fade);
+                }
                 
-                ctx.fillStyle = "rgba(255,255,255,0.7)";
-                ctx.beginPath();
-                ctx.arc(t.x, t.y, t.r * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.abs(Math.sin(time * 0.05)) * 0.3})`;
-                ctx.beginPath();
-                ctx.arc(t.x, t.y, t.r * 1.8, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.shadowBlur = 0; 
+                if (currentAlpha > 0) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`;
+                    ctx.beginPath();
+                    ctx.arc(vb.x, vb.y, vb.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
-        }
 
-        if (dolphin) {
-            ctx.save();
-            ctx.translate(dolphin.x + dolphin.w/2, dolphin.y + dolphin.h/2);
-            ctx.scale(dolphin.vx > 0 ? -1 : 1, 1);
-            if (dolphin.img && dolphin.img.complete && dolphin.img.width > 0) {
-                let aspect = dolphin.img.width / dolphin.img.height;
-                let drawW = dolphin.w;
-                let drawH = drawW / aspect;
-                dolphin.h = drawH; 
-                ctx.drawImage(dolphin.img, -drawW/2, -drawH/2, drawW, drawH);
-            } else {
-                ctx.fillStyle = "pink";
-                ctx.fillRect(-dolphin.w/2, -dolphin.h/2, dolphin.w, dolphin.h);
+            for (let shark of sharks) {
+                ctx.save();
+                ctx.translate(shark.x + shark.w/2, shark.y + shark.h/2);
+                ctx.scale(shark.vx > 0 ? -1 : 1, 1);
+                
+                if (shark.img && shark.img.complete && shark.img.width > 0) {
+                    let aspect = shark.img.width / shark.img.height;
+                    let drawW = shark.w;
+                    let drawH = drawW / aspect; 
+                    ctx.drawImage(shark.img, -drawW/2, -drawH/2, drawW, drawH);
+                } else {
+                    ctx.fillStyle = shark.type === 'branco' ? "#ccc" : "#34495e";
+                    ctx.fillRect(-shark.w/2, -shark.h/2, shark.w, shark.h);
+                }
+                ctx.restore();
             }
-            ctx.restore();
-        }
 
-        for (let vb of visualBubbles) {
-            let currentAlpha = vb.alpha;
-            let surfaceY = getAverageWaveY(vb.x);
-            
-            if (vb.y < surfaceY + H * 0.1) {
-                let fade = (vb.y - surfaceY) / (H * 0.1);
-                currentAlpha *= Math.max(0, fade);
+            // Oculta o mergulhador na morte final
+            if (gameState === 'playing' && (time - lastDamageTime > 60 || Math.floor(time / 5) % 2 === 0)) {
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.scale(player.flipX ? -1 : 1, player.flipY ? -1 : 1);
+                
+                if(imgMergulhador.complete && imgMergulhador.width > 0) {
+                    let aspect = imgMergulhador.width / imgMergulhador.height;
+                    let drawW = player.r * 2.5; 
+                    let drawH = drawW / aspect; 
+                    ctx.drawImage(imgMergulhador, -drawW/2, -drawH/2, drawW, drawH);
+                } else {
+                    ctx.fillStyle = "#e67e22"; 
+                    ctx.beginPath();
+                    ctx.arc(0, 0, player.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
             }
-            
-            if (currentAlpha > 0) {
-                ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`;
-                ctx.beginPath();
-                ctx.arc(vb.x, vb.y, vb.r, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        for (let shark of sharks) {
-            ctx.save();
-            ctx.translate(shark.x + shark.w/2, shark.y + shark.h/2);
-            ctx.scale(shark.vx > 0 ? -1 : 1, 1);
-            
-            if (shark.img && shark.img.complete && shark.img.width > 0) {
-                let aspect = shark.img.width / shark.img.height;
-                let drawW = shark.w;
-                let drawH = drawW / aspect; 
-                ctx.drawImage(shark.img, -drawW/2, -drawH/2, drawW, drawH);
-            } else {
-                ctx.fillStyle = shark.type === 'branco' ? "#ccc" : "#34495e";
-                ctx.fillRect(-shark.w/2, -shark.h/2, shark.w, shark.h);
-            }
-            ctx.restore();
-        }
-
-        if (time - lastDamageTime > 60 || Math.floor(time / 5) % 2 === 0) {
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            ctx.scale(player.flipX ? -1 : 1, player.flipY ? -1 : 1);
-            
-            if(imgMergulhador.complete && imgMergulhador.width > 0) {
-                let aspect = imgMergulhador.width / imgMergulhador.height;
-                let drawW = player.r * 2.5; 
-                let drawH = drawW / aspect; 
-                ctx.drawImage(imgMergulhador, -drawW/2, -drawH/2, drawW, drawH);
-            } else {
-                ctx.fillStyle = "#e67e22"; 
-                ctx.beginPath();
-                ctx.arc(0, 0, player.r, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
         }
         ctx.restore();
     }
 
     function drawJoystick() {
+        if (gameState !== 'playing') return; // Não desenha Joystick se não estiver jogando
+
         jCtx.clearRect(0, 0, joystickCanvas.width, joystickCanvas.height);
         jCtx.beginPath();
         jCtx.arc(joystick.cx, joystick.cy, joystick.maxR, 0, Math.PI * 2);
