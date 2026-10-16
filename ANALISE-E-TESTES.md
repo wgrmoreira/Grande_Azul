@@ -88,3 +88,17 @@ Esta revisão não repetiu os testes em navegador; as mudanças de interface se 
 Foram aprovadas 14 verificações específicas de nascimento na superfície, ausência de consumo parado, ocultação do painel ao mergulhar, posição e tanque após entrega, ciclo noturno 3/6/9, progressão de velocidade e detecção, início e término de perseguição de 3 segundos, intervalo antes de nova detecção, destinos aleatórios bidimensionais, patrulha de dois minutos dentro dos limites, execução da renderização noturna, pausa durante a noite e reinício diurno. O relatório detalhado está em `TESTES-V3.json`.
 
 As 10 verificações anteriores de oxigênio, entregas, progressão e geração de 1.000 mapas também passaram novamente. O motor foi executado com objetos de DOM e Canvas simulados. Isso verifica chamadas e regras, mas não confirma aparência ou desempenho em um navegador real.
+
+## Revisão 4 — 16/10/2026
+
+15 testes novos aprovados: sequência dia/tarde/noite por 12 fases; alternância de fundos por ciclos; uma única aparição da chave em fase diurna; coleta e persistência da chave; presença de baú noturno; abertura condicionada e consumo da chave; prêmio único de 500 na mochila; depósito do prêmio e limpeza do ciclo; baú fechado sem chave; dano de 15 por água-viva; proteção contra dano imediato repetido; crescimento de quantidade; flutuação independente do jogador; 1.000 geografias distintas com itens acessíveis; execução da renderização dos três horários.
+
+Os 14 testes da revisão 3 e os 10 testes de oxigênio/progressão também passaram. O teste exploratório de balanceamento passou a medir a média de coleta parcial: na amostra atual houve média de aproximadamente 46%, com algumas rotas chegando a 100% em simulação sem perigos. Não se afirma impossibilidade matemática de coletar todas as moedas.
+
+Foram renderizadas e inspecionadas cenas reais do motor em Canvas nativo em seis fases, incluindo luz de tarde, lanterna, luminescência e ambos os fundos. Essa inspeção confirma os elementos do cenário, mas não substitui uma nova revisão da interface no navegador ou testes em aparelhos físicos.
+
+## Revisão 5
+
+9 testes novos aprovados: pose original em repouso, alternância de dois quadros ao nadar, retorno imediato à pose original ao soltar o controle, animação vertical, relógio congelado durante a pausa, raio de colisão preservado, imagem própria do baú fechado, imagem própria do baú aberto e reset da animação no reinício. Os 29 testes das revisões 3 e 4 também foram repetidos com sucesso.
+
+Os três PNGs foram carregados pelo motor de renderização em Canvas nativo, com inspeção visual de baú fechado/aberto e pernas nas duas posições. Não se afirma teste novo em navegador ou aparelhos físicos.

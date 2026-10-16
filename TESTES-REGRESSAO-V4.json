@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "Superfície mantém oxigênio estável",
+    "Barco sem tesouro não recarrega nem renova mapa",
+    "Tanque acaba em 38 segundos submerso",
+    "Reserva recupera somente 8%",
+    "Reservas não reaparecem com o tempo",
+    "Entrega pontua e recarrega 100%",
+    "Entrega sorteia novo fundo e novas rochas",
+    "60 mergulhos: velocidade cresce sempre e quantidade nunca diminui",
+    "1.000 mapas distintos com 22 moedas e 2 reservas livres de rochas",
+    "Coleta média de referência permanece parcial"
+  ],
+  "balance": {
+    "maps": 100,
+    "average": 0.4627272727272727,
+    "min": 0.09090909090909091,
+    "max": 1
+  }
+}

@@ -62,7 +62,7 @@ Recordes são salvos no navegador após cada entrega e no fim da partida. Se o a
 index.html        Interface e telas
 style.css         Aparência e adaptação a telas
 game.js           Simulação, renderização, áudio e controles
-assets/img/       13 imagens usadas pelo jogo
+assets/img/       17 imagens usadas pelo jogo
 assets/music/     Música original fornecida
 LEIA-ME.md        Este guia
 ANALISE-E-TESTES.md
@@ -93,3 +93,23 @@ Esta revisão acrescenta 10 verificações de regras executadas diretamente no m
 - As fases 3, 6, 9, 12 e assim por diante são noturnas. Uma máscara escurece o cenário; o mergulhador ilumina uma área próxima e projeta um facho na direção do nado. Os instrumentos continuam legíveis. A fase seguinte volta a ser diurna.
 
 As 14 verificações desta revisão estão registradas em `TESTES-V3.json`. Foram repetidas também as 10 verificações de regras da revisão anterior. Elas executam o motor com DOM e Canvas simulados; não houve nova revisão visual em navegador nesta versão.
+
+## Revisão 4 — ciclos, ruínas, chave e águas-vivas
+
+O ciclo agora é **dia → fim de tarde → noite**, repetido indefinidamente. A tarde recebe luz quente e água menos iluminada; a noite mantém lanterna e escuridão. O fundo original aparece nas fases 1–3, o novo cenário de ruínas e algas nas fases 4–6, o original nas fases 7–9, e assim por diante.
+
+A geografia usa de 13 a 21 pilares principais, plataformas laterais opcionais, quatro perfis de relevo, dimensões, alturas, estratos e distribuição sorteados. As 22 moedas continuam distribuídas com área livre de coleta. O terreno sólido segue as plataformas, não os desenhos distantes do fundo.
+
+**Chave e baú:** em cada ciclo, a chave aparece uma única vez, em um ponto aleatório do leito, no dia OU no fim de tarde (sorteado). Ela não reaparece na outra fase se for ignorada. Coletá-la guarda a chave entre as entregas até a noite. A chave não conta como moeda; continue recolhendo tesouros para entregar e avançar. À noite há um baú em outro ponto sorteado do leito. Aproximar-se dele com a chave abre automaticamente o baú e acrescenta **500 pontos à mochila**, para entregar no barco. Sem chave ele permanece fechado. O baú só concede o prêmio uma vez. A chave é consumida ao abrir e qualquer chave não usada expira no início do ciclo seguinte. O indicador junto à mochila informa o estado da chave e do baú.
+
+**Águas-vivas:** começam em três; sua quantidade cresce com as fases até 26. Elas flutuam em torno de posições fixas, sem perseguir. Contato com o corpo ou tentáculos causa **15 de dano**, respeitando a proteção temporária já existente. À noite têm cor mais luminosa e halo que permanece visível fora da lanterna.
+
+Validação desta versão: **39 verificações de regras aprovadas** (10 de regressão, 14 da revisão 3 e 15 novas), além de inspeção de seis cenas renderizadas pelo próprio motor com Canvas nativo, cobrindo dois ciclos e ambos os fundos. A interface completa não foi testada novamente em navegador. Em 100 rotas automáticas sem perigos, a média de coleta foi de aproximadamente 46%, mas algumas chegaram a todas as moedas; os 60% são uma meta de balanceamento, não um limite garantido.
+
+## Revisão 5 — baú ilustrado e nado animado
+
+O baú agora usa duas imagens ilustradas com transparência: fechado e aberto com moedas. A base dos dois sprites está alinhada, e madeira, metais dourados e corais seguem o estilo dos outros assets. As regras de chave, abertura e prêmio continuam as mesmas.
+
+O mergulhador alterna entre a pose original e uma nova pose com as nadadeiras mais próximas enquanto se move sob comando. Ao soltar o controle ou ficar bloqueado, volta à pose original; a animação pausa junto com o jogo. As duas imagens têm as mesmas dimensões, e a colisão continua com o mesmo raio. O intervalo é de 0,16 segundo por pose (0,24 segundo quando o sistema prefere movimento reduzido).
+
+Nesta revisão passaram 9 testes novos de animação e seleção de imagens, além dos 29 testes das revisões 3 e 4. Os arquivos reais foram carregados e os dois estados do baú e as duas poses foram renderizados em Canvas nativo e inspecionados. Não foi repetida uma revisão da interface completa no navegador.

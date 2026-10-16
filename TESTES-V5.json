@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "Parado utiliza pose original",
+    "Nadando alterna as duas poses de pernas",
+    "Soltar controle interrompe alternância imediatamente",
+    "Nado vertical também anima as pernas",
+    "Pausa congela o relógio da animação",
+    "Animação mantém o mesmo raio de colisão",
+    "Baú fechado usa imagem ilustrada própria",
+    "Baú aberto usa segunda imagem ilustrada",
+    "Reinício restaura pose original"
+  ],
+  "method": "Verificações do motor com DOM/Canvas simulados; imagens reais conferidas separadamente por renderização Canvas nativa."
+}

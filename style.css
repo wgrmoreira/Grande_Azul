@@ -6,3 +6,5 @@
 @media(max-width:700px){#hud{inset:65px 14px auto;grid-template-columns:minmax(140px,1fr) 145px;gap:10px}#hud #radar{width:145px;padding:8px}#hud #map{height:65px}#hud .mission{grid-column:1/-1}#travelStats{flex-direction:column;align-items:stretch;gap:6px}.cargo{padding:7px 10px;width:auto}.cargo strong{font-size:16px}.cargo div{font-size:8px}#compass{text-align:center;padding:9px}#toast{bottom:155px;width:max-content;max-width:90%}#dayPhase{font-size:7px;margin-left:4px}#radar span{font-size:8px}}
 @media(max-height:500px){#hud{inset:55px 18px auto;grid-template-columns:175px 145px 1fr;gap:15px}#hud #radar{width:145px;padding:7px}#hud #map{height:50px}#hud .mission{grid-column:auto;justify-self:end;max-width:220px}#travelStats{flex-direction:row;align-items:center}#toast{bottom:28px;max-width:45%}.cargo{padding:7px 10px}#compass{padding:10px}}
 
+
+#keyStatus{font-size:10px;color:#f5d898;max-width:140px;text-align:right;text-shadow:0 2px 6px #001d2f}#keyStatus:empty{display:none}@media(max-width:700px){#keyStatus{font-size:9px;text-align:center}}

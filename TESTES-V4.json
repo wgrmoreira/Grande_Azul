@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "Ciclo dia/tarde/noite se repete em 12 fases",
+    "Fundos alternam a cada ciclo de três fases",
+    "Chave aparece em apenas uma fase diurna por ciclo",
+    "Encostar na chave guarda e remove o item",
+    "Chave persiste até a noite, com baú no fundo",
+    "Baú com chave abre e acrescenta 500 à mochila",
+    "Baú não pode conceder prêmio duas vezes",
+    "Prêmio só pontua após entrega e ciclo seguinte limpa a chave",
+    "Sem chave baú continua trancado e não dá prêmio",
+    "Água-viva causa 15 de dano por contato",
+    "Proteção impede dano de contato a cada quadro",
+    "Quantidade de águas-vivas cresce com as fases",
+    "Águas-vivas flutuam perto da âncora sem perseguir jogador",
+    "1.000 geografias distintas com quantidade variável de pilares e itens acessíveis",
+    "Cenários de dia, tarde e noite com novos objetos renderizam sem erro"
+  ],
+  "method": "Motor executado com DOM/Canvas simulados; geografia verificada em 1.000 mapas."
+}
