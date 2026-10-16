@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "Início na superfície, sem consumo durante 10 segundos",
+    "Painel de águas rasas visível na superfície",
+    "Mergulhar consome oxigênio e oculta o painel",
+    "Novo mergulho também começa na superfície e conserva 100%",
+    "Somente fases 3, 6 e 9 são noturnas no primeiro ciclo",
+    "Raio de detecção e velocidade aumentam com a fase",
+    "Detectar o jogador inicia perseguição de 3 segundos",
+    "Predador se aproxima durante a perseguição",
+    "Perseguição termina e não reinicia imediatamente",
+    "Patrulha escolhe destinos em posições e profundidades variadas",
+    "Dois minutos de patrulha mantêm predador no mapa",
+    "Renderização noturna aplica máscara e iluminação sem erros",
+    "Pausa congela oxigênio e posição na noite",
+    "Reiniciar retorna à fase diurna e à superfície"
+  ],
+  "method": "Motor JavaScript executado com DOM e Canvas simulados; não constitui revisão visual em navegador."
+}

@@ -82,3 +82,9 @@ As 24 verificações de navegador acima descrevem a primeira entrega. Nesta revi
 A estratégia automática busca itens próximos e tenta retornar ao barco com reserva de tempo. Não é uma solução ótima e não substitui testes com jogadores. A amostra de balanceamento registrada teve média de aproximadamente 50%, mínimo de 14% e máximo de 95% de moedas coletadas. O objetivo aproximado de 60% depende de habilidade e rota, sem bloqueio artificial da coleta. O motor continua permitindo sobrevivência temporária com perda de vida ao esgotar o oxigênio.
 
 Esta revisão não repetiu os testes em navegador; as mudanças de interface se limitam aos textos das regras.
+
+## Revisão 3
+
+Foram aprovadas 14 verificações específicas de nascimento na superfície, ausência de consumo parado, ocultação do painel ao mergulhar, posição e tanque após entrega, ciclo noturno 3/6/9, progressão de velocidade e detecção, início e término de perseguição de 3 segundos, intervalo antes de nova detecção, destinos aleatórios bidimensionais, patrulha de dois minutos dentro dos limites, execução da renderização noturna, pausa durante a noite e reinício diurno. O relatório detalhado está em `TESTES-V3.json`.
+
+As 10 verificações anteriores de oxigênio, entregas, progressão e geração de 1.000 mapas também passaram novamente. O motor foi executado com objetos de DOM e Canvas simulados. Isso verifica chamadas e regras, mas não confirma aparência ou desempenho em um navegador real.

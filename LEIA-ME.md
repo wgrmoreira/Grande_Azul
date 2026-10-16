@@ -82,3 +82,14 @@ Na versão inicial foram aprovadas 24 verificações automatizadas no Microsoft 
 ## Revisão 2 — oxigênio e imprevisibilidade
 
 Esta revisão acrescenta 10 verificações de regras executadas diretamente no motor, incluindo 1.000 mapas distintos e progressão por 60 mergulhos. Em uma amostra de 100 mapas, a rota automática de referência coletou em média cerca de 50% das moedas (máximo de cerca de 95%), sem predadores. É uma estratégia simples, não uma busca da rota ótima. A intenção é exigir escolhas e retorno antecipado, tendo aproximadamente 60% como referência de coleta parcial; não há um bloqueio artificial que impeça uma moeda após essa porcentagem. Resultados de jogadores reais variam conforme o mapa e a rota.
+
+## Revisão 3 — patrulhas e mergulho noturno
+
+- O mergulhador começa na superfície tanto ao iniciar/reiniciar quanto após cada entrega, sem consumo de oxigênio enquanto permanecer ali.
+- Predadores escolhem destinos aleatórios em duas dimensões, respeitando os limites do mundo e as rochas. Ao detectar o mergulhador submerso, seguem sua posição por 3 segundos, com velocidade de perseguição 55% maior, e depois retomam a patrulha por pelo menos 4 segundos antes de poder detectar novamente.
+- O raio de detecção começa em 220 unidades do mundo e aumenta 28 unidades a cada mergulho, além da progressão de velocidade e quantidade já existente.
+- O painel de Águas Rasas desaparece quando o jogador submerge e volta ao retornar à superfície.
+- O sonar ocupa a posição superior central. Pontos entregues, mochila e distância do barco ficam em instrumentos menores agrupados na parte inferior.
+- As fases 3, 6, 9, 12 e assim por diante são noturnas. Uma máscara escurece o cenário; o mergulhador ilumina uma área próxima e projeta um facho na direção do nado. Os instrumentos continuam legíveis. A fase seguinte volta a ser diurna.
+
+As 14 verificações desta revisão estão registradas em `TESTES-V3.json`. Foram repetidas também as 10 verificações de regras da revisão anterior. Elas executam o motor com DOM e Canvas simulados; não houve nova revisão visual em navegador nesta versão.
