@@ -8,3 +8,9 @@
 
 
 #keyStatus{font-size:10px;color:#f5d898;max-width:140px;text-align:right;text-shadow:0 2px 6px #001d2f}#keyStatus:empty{display:none}@media(max-width:700px){#keyStatus{font-size:9px;text-align:center}}
+
+/* Versão 5: tesouros no topo direito e direcional central para ambas as mãos. */
+.topbar nav{align-items:center}#deliveredHud{width:174px;max-width:34vw;min-width:0;margin:0;padding:8px 11px;pointer-events:none}#deliveredHud>span{font-size:7px!important;letter-spacing:.5px!important;white-space:nowrap}#deliveredHud strong{font-size:18px}#deliveredHud div{font-size:9px;white-space:nowrap}
+#dock{left:0;right:0;bottom:max(22px,env(safe-area-inset-bottom));height:116px;display:block;pointer-events:none}#stick{position:absolute;left:50%;top:0;transform:translateX(-50%);pointer-events:auto}#dock>p{position:absolute;left:32px;bottom:0;margin:0}#travelStats{position:absolute;right:24px;bottom:0;margin:0}#keyStatus{display:block;max-width:180px}#toast{bottom:160px}
+@media(max-width:700px){.topbar{gap:6px}.wordmark{gap:6px;font-size:9px;letter-spacing:.6px}.topbar nav{gap:6px}#deliveredHud{width:145px;max-width:none;padding:7px 8px}#deliveredHud>span{font-size:6px!important;letter-spacing:.3px!important}#deliveredHud strong{font-size:16px}#deliveredHud div{font-size:8px}.topbar nav button{padding:9px 8px}#pause span{display:none}#dock{height:116px;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom))}#travelStats{right:12px;bottom:0}#keyStatus{max-width:105px;text-align:right;font-size:8px}}
+@media(max-height:500px){#dock{left:0;right:0;bottom:max(14px,env(safe-area-inset-bottom));height:84px}#stick{width:84px;height:84px}#dock>p{display:none}#toast{bottom:112px}#travelStats{right:18px;bottom:0}}

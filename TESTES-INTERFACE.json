@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "Som habilitado e música iniciada no começo",
+    "Atalho M não desliga o áudio",
+    "Pausa interrompe música sem mutar configuração",
+    "Retomar reinicia música mesmo na superfície",
+    "Tesouros do topo visíveis após início",
+    "Entrega continua atualizando mostrador reposicionado",
+    "Começa na superfície com tanque completo",
+    "Renderização não depende dos controles removidos"
+  ],
+  "method": "Regras e eventos do motor verificados com DOM/Canvas simulados. Estrutura do HTML e regras finais de posicionamento verificadas separadamente.",
+  "staticChecks": [
+    "Botão e atalho de som removidos",
+    "Distância e bússola removidas do HTML e JavaScript",
+    "Contador no cabeçalho superior",
+    "Direcional centralizado com posição de 50% e compensação da própria largura",
+    "IDs únicos no HTML",
+    "Todos os assets idênticos aos do ZIP fornecido"
+  ]
+}

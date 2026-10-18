@@ -21,14 +21,13 @@ Servidor local opcional, caso Python já esteja instalado: abra um terminal nest
 | Nadar | WASD ou setas |
 | Nadar no celular | Arrastar o controle circular |
 | Pausar / continuar | Esc, P ou botão Pausar |
-| Ligar / desligar som | M ou botão de som |
 
-O jogo pausa ao trocar de janela ou ocultar a aba. Continue pelo botão quando voltar. O som começa desligado; ative-o quando desejar.
+O jogo pausa ao trocar de janela ou ocultar a aba. Continue pelo botão quando voltar. O som fica sempre habilitado e começa após a interação para iniciar o mergulho. Ele pausa ao pausar o jogo ou sair da aba.
 
 ## Objetivo e regras
 
 - Encontre moedas de bronze (20 pontos), prata (50) e ouro (100).
-- A mochila não tem limite. Os pontos só são garantidos após retornar ao barco, indicado pela bússola e pelo sonar.
+- A mochila não tem limite. Os pontos só são garantidos após retornar ao barco, indicado pela sonar.
 - Cada entrega conclui uma descida e sorteia novas posições, alturas, larguras e aparência das rochas, posições e valores dos tesouros, reservas de O₂ e composição do fundo. A velocidade dos tubarões cresce 9% da velocidade inicial a cada mergulho; a quantidade aumenta a cada dois mergulhos, até 12 tubarões, e uma orca passa a acompanhar os níveis a partir da quinta expedição. A exploração é contínua, sem uma fase final obrigatória.
 - Somente uma entrega de tesouros no barco recarrega todo o oxigênio, recupera 12 pontos de vida e inicia um novo mergulho. Aproximar-se do barco com a mochila vazia não recarrega o tanque.
 - Na superfície, o oxigênio não regenera e não é consumido. Submerso, um tanque cheio dura aproximadamente 38 segundos.
@@ -46,7 +45,7 @@ Recordes são salvos no navegador após cada entrega e no fim da partida. Se o a
 - Paleta coerente em azul, verde-mar, dourado e coral; transparência real nos sprites e imagens otimizadas para distribuição local.
 - Menu, instruções, HUD, pausa e tela final refeitos, com contraste, foco de teclado e avisos em português.
 - Câmera contínua, animação de ondas, balanço do barco, plantas, raios de luz, bolhas e partículas de coleta e dano.
-- Teclado, controle de toque com captura de ponteiro, bússola, profundidade e sonar.
+- Teclado, controle de toque com captura de ponteiro, profundidade e sonar.
 - Mundo de tamanho fixo e independente do tamanho da janela; rotação e redimensionamento preservam a partida.
 - Simulação em passos de 1/60 s, independente da taxa de atualização da tela, com limite para atrasos prolongados.
 - Colisões do mergulhador resolvidas por eixo e em pequenos deslocamentos; área de dano dos predadores ajustada ao corpo.
@@ -113,3 +112,7 @@ O baú agora usa duas imagens ilustradas com transparência: fechado e aberto co
 O mergulhador alterna entre a pose original e uma nova pose com as nadadeiras mais próximas enquanto se move sob comando. Ao soltar o controle ou ficar bloqueado, volta à pose original; a animação pausa junto com o jogo. As duas imagens têm as mesmas dimensões, e a colisão continua com o mesmo raio. O intervalo é de 0,16 segundo por pose (0,24 segundo quando o sistema prefere movimento reduzido).
 
 Nesta revisão passaram 9 testes novos de animação e seleção de imagens, além dos 29 testes das revisões 3 e 4. Os arquivos reais foram carregados e os dois estados do baú e as duas poses foram renderizados em Canvas nativo e inspecionados. Não foi repetida uma revisão da interface completa no navegador.
+
+## Ajuste de interface — 18/10/2026
+
+Esta edição foi criada a partir do ZIP `Grande-Azul-v5.zip` indicado. O botão de som e o atalho M foram removidos; música e efeitos ficam habilitados após o início. A distância do barco foi removida. Os pontos e a mochila ficam no topo direito, junto do botão de pausa. O direcional de toque fica centralizado horizontalmente na parte inferior, com o mesmo acesso para as duas mãos. A chave permanece indicada à direita na parte inferior. As demais regras e imagens foram preservadas.
